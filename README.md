@@ -1,6 +1,6 @@
-# Twitter Sentiment Analysis
+# Sentiment Analysis with Logistic Regression and BERT
 
-This project uses the Sentiment140 dataset for sentiment analysis with Logistic Regression.
+This project uses the Sentiment140 dataset to perform sentiment analysis with Logistic Regression and BERT.
 
 ## Setup
 
@@ -32,28 +32,69 @@ with ZipFile('/content/sentiment140.zip', 'r') as zip:
 
 ## Preprocessing
 
-Load dataset, rename columns, replace target values (`4` → `1`), and apply stemming:
+Load dataset, rename columns, replace target values (`4` → `1`), and split data:
 <pre>
 <code>
-twitter_data = pd.read_csv('file.csv', names=['target', 'id', 'date', 'flag', 'user', 'text'], encoding='ISO-8859-1')
-twitter_data.replace({'target': {4: 1}}, inplace=True)
+import pandas as pd
+from sklearn.model_selection import train_test_split
+
+data = pd.read_csv('/content/training.1600000.processed.noemoticon.csv', names=['target', 'id', 'date', 'flag', 'user', 'text'], encoding='ISO-8859-1')
+data['target'].replace({4: 1}, inplace=True)
+data = data[['text', 'target']]
+X_train, X_test, y_train, y_test = train_test_split(data['text'], data['target'], test_size=0.2, stratify=data['target'], random_state=42)
 </code>
 </pre>
 
-## Model Training
+## Logistic Regression Model
 
-Convert text to numerical data using `TfidfVectorizer`, split data, and train a Logistic Regression model:
+Preprocess text and train the Logistic Regression model:
 <pre>
 <code>
 from sklearn.linear_model import LogisticRegression
-model = LogisticRegression(max_iter=10000)
-model.fit(X_train, Y_train)
+from sklearn.feature_extraction.text import TfidfVectorizer
+
+vectorizer = TfidfVectorizer()
+X_train_lr = vectorizer.fit_transform(X_train)
+X_test_lr = vectorizer.transform(X_test)
+
+logistic_model = LogisticRegression(max_iter=10000)
+logistic_model.fit(X_train_lr, y_train)
+</code>
+</pre>
+
+## BERT Model
+
+Preprocess data for BERT and train the model:
+<pre>
+<code>
+from transformers import BertTokenizer, BertForSequenceClassification, AdamW
+from torch.utils.data import DataLoader
+
+bert_tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+train_loader = DataLoader(train_dataset_bert, batch_size=16, shuffle=True)
+test_loader = DataLoader(test_dataset_bert, batch_size=16, shuffle=False)
+
+bert_model = BertForSequenceClassification.from_pretrained('bert-base-uncased', num_labels=2)
+optimizer = AdamW(bert_model.parameters(), lr=2e-5)
 </code>
 </pre>
 
 ## Results
 
-Compute accuracy on training and test sets.
+Compare the accuracy of both models:
+<pre>
+<code>
+print(f"Logistic Regression Test Accuracy: {test_accuracy_lr:.2f}")
+print(f"BERT Test Accuracy: {bert_test_accuracy:.2f}")
+</code>
+</pre>
 
+## Save BERT Model:
+<pre>
+<code>
+bert_model.save_pretrained('/content/bert_sentiment_model')
+bert_tokenizer.save_pretrained('/content/bert_sentiment_model')
+</code>
+</pre>
 
-
+This project compares Logistic Regression and BERT for sentiment analysis, with BERT outperforming Logistic Regression.
